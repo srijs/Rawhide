@@ -10,9 +10,11 @@ import java.security.DigestOutputStream
 type WeakHash   = Int
 type StrongHash = Array[Byte]
 
-class Adler32(size: Int, mod: Int) {
+trait Adler32 {
 
-  def hash(bytes: Array[Byte]): WeakHash = {
+  val mod = 64 * 1024
+
+  def weakHash(bytes: Array[Byte]): WeakHash = {
     var a = 1
     var b = 0
     for (byte <- bytes) {
@@ -22,13 +24,21 @@ class Adler32(size: Int, mod: Int) {
     (b << 16) | a
   }
 
-  def roll(hash: WeakHash, added: Byte, removed: Byte, windowSize: Int): WeakHash = {
+  def weakRoll(hash: WeakHash, added: Byte, removed: Byte, windowSize: Int): WeakHash = {
     var a = hash
     var b = (a >> 16) & 0xffff
     a &= 0xffff
     a = (a - removed + added) % mod
     b = (b - (windowSize * removed) + a) % mod
     (b << 16) | a
+  }
+
+}
+
+trait SHA1 {
+
+  def createStrongHash(): MessageDigest = {
+    return MessageDigest.getInstance("SHA-1")
   }
 
 }
@@ -42,23 +52,14 @@ abstract class Rawhide(wz: Int, ch: Int, cm: Int) {
 
   def chunkExists(hash: StrongHash): Boolean
   
-  // Weak Hasher (Adler 32)
+  // Weak Hasher
 
-  val adler = new Adler32(wz, 64 * 1024)
+  def weakHash(bytes: Array[Byte]): WeakHash
+  def weakRoll(hash: WeakHash, added: Byte, removed: Byte, windowSize: Int): WeakHash
 
-  def weakHash(bytes: Array[Byte]): WeakHash = {
-    adler.hash(bytes)
-  }
-    
-  def weakRoll(hash: WeakHash, added: Byte, removed: Byte, windowSize: Int): WeakHash = {
-    adler.roll(hash, added, removed, windowSize)
-  }
+  // Strong Hasher
 
-  // Strong Hasher (SHA1)
-
-  def createStrongHash(): MessageDigest = {
-    return MessageDigest.getInstance("SHA-1")
-  }
+  def createStrongHash(): MessageDigest
 
   // Stream Tools
 
@@ -172,7 +173,8 @@ abstract class Rawhide(wz: Int, ch: Int, cm: Int) {
 
 object Test {
 
-  object R extends Rawhide(10, 0, 2) {
+  object R extends Rawhide(1, 0, 2) with Adler32 with SHA1 {
+
     def createOutputStream(): OutputStream = {
       return new DigestOutputStream(new FileOutputStream("/tmp/out", true), MessageDigest.getInstance("SHA-1"))
     }
