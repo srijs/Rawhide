@@ -30,8 +30,18 @@ a32scan m z s = scan (a32init m (B.take z s)) s
                  then let Just (wr, s') = B.uncons s in h : scan (a32roll m z h wr (B.index s z)) s'
                  else []
 
-chunk :: Int -> Int -> (Int, Int) -> ByteString -> [ByteString]
-chunk m z (a, b) s =  
+{- Chunking -}
+
+group :: (Eq a) => a -> [a] -> [Int]
+group c cs = groupRun c cs 0
+  where groupRun _ []     n = [n]
+        groupRun c (h:hs) n = if h == c
+                              then n : groupRun c hs 1
+                              else groupRun c hs (n + 1)
+ 
+
+--chunk :: Int -> Int -> (Int, Int) -> ByteString -> [ByteString]
+--chunk m z (a, b) s =  
 
 {- Arbitrary instances (for testing purposed) -}
 
