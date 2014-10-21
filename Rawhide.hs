@@ -32,13 +32,12 @@ a32scan m z s = scan (a32init m (B.take z s)) s
 
 {- Chunking -}
 
-group :: (Eq a) => a -> [a] -> [Int]
-group c cs = groupRun c cs 0
+group :: (Eq a) => Int -> Int -> a -> [a] -> [Int]
+group min max c cs = groupRun c cs 0
   where groupRun _ []     n = [n]
-        groupRun c (h:hs) n = if h == c
+        groupRun c (h:hs) n = if h == c && n >= min || n == max
                               then n : groupRun c hs 1
                               else groupRun c hs (n + 1)
- 
 
 --chunk :: Int -> Int -> (Int, Int) -> ByteString -> [ByteString]
 --chunk m z (a, b) s =  
