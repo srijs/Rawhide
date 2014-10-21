@@ -1,14 +1,17 @@
 import Data.Word (Word8)
 import Data.Int (Int64)
 
+import qualified System.IO as IO
+
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
+
+import qualified Crypto.Hash.SHA1 as SHA1
 
 import Test.QuickCheck
 
 {- Adler32 Rolling Hash Function -}
 
-spec_a32_identity :: Int -> ByteString -> Word8 -> Property
 spec_a32_identity m a w = (m > 0 && B.length a > 1) ==> a32init m (B.snoc (B.tail a) w) == a32roll m (B.length a) (a32init m a) (B.head a) w
 
 a32init :: Int -> ByteString -> (Int, Int)
@@ -20,7 +23,6 @@ a32roll m z (a, b) wr wa = let a' = (a - wr' + wa') in (a' `mod` m, (b - ((fromI
   where wr' = fromIntegral wr
         wa' = fromIntegral wa
 
-spec_a32_scan_identity :: Int -> ByteString -> Word8 -> Property
 spec_a32_scan_identity m a w = (m > 0 && B.length a > 1) ==> a32scan m (B.length a) (B.snoc a w) == [h, h']
   where h  = a32init m a
         h' = a32roll m (B.length a) h (B.head a) w
@@ -45,6 +47,11 @@ chunk :: Int64 -> Int64 -> Int -> Int64 -> (Int, Int) -> ByteString -> [ByteStri
 chunk min max m z c cs = chunkRun (group min max c (a32scan m z cs)) cs
   where chunkRun [_]    cs = [cs]
         chunkRun (l:ls) cs = let (c, cs') = B.splitAt l cs in c : chunkRun ls cs'
+
+{- IO -}
+
+fanout min max m z c f h = IO.hSetBinaryMode h True >> B.hGetContents h >>=
+                           mapM f . map (\c -> (SHA1.hashlazy c, c)) . chunk min max m z c
 
 {- Arbitrary instances (for testing purposed) -}
 
