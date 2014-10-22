@@ -1,3 +1,5 @@
+module Rawhide where
+
 import Data.Word (Word8)
 import Data.Int (Int64)
 
@@ -5,6 +7,7 @@ import qualified System.IO as IO
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as SB
 
 import qualified Crypto.Hash.SHA1 as SHA1
 
@@ -12,11 +15,12 @@ import Test.QuickCheck
 
 {- Adler32 Rolling Hash Function -}
 
-spec_a32_identity m a w = (m > 0 && B.length a > 1) ==> a32init m (B.snoc (B.tail a) w) == a32roll m (B.length a) (a32init m a) (B.head a) w
+spec_a32_identity m a w = (m > 0 && B.length a > 1) ==>
+  a32init m (B.snoc (B.tail a) w) == a32roll m (B.length a) (a32init m a) (B.head a) w
 
 a32init :: Int -> ByteString -> (Int, Int)
-a32init m = B.foldl hash (1, 0)
-  where hash (a, b) w = let a' = a + (fromIntegral w) in (a' `mod` m, (b + a') `mod` m)
+a32init m s = let (a, b) =  B.foldl hash (1, 0) s in (a `mod` m, b `mod` m)
+  where hash (a, b) w = let a' = a + (fromIntegral w) in (a', (b + a'))
 
 a32roll :: Int -> Int64 -> (Int, Int) -> Word8 -> Word8 -> (Int, Int)
 a32roll m z (a, b) wr wa = let a' = (a - wr' + wa') in (a' `mod` m, (b - ((fromIntegral z) * wr') + a' - 1) `mod` m)
@@ -35,6 +39,17 @@ a32scan m z s = scan (a32init m (B.take z s)) s
                    else []
 
 {- Chunking -}
+
+{-
+  min:     minimum chunksize, min < max
+  max:     maximum chunksize
+  z:       window size for adler32 (when 65521 is picked for m, then z > m / 255)
+  m:       prime modulo for adler32, m < z * 255 (originally 65521, which is largest prime < 2**16)
+  c@(a,b): comparison element for boundary determination, a < m && b < m
+  -- statistically, you want your chunk sizes not too near the min or max,
+  -- to minimise the probablitity of chunk merges or splits, which compromise
+  -- self-synchonisation.
+-}
 
 group :: (Eq a) => Int64 -> Int64 -> a -> [a] -> [Int64]
 group min max c cs = groupRun c cs 0
