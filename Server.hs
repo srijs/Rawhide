@@ -32,7 +32,7 @@ application min max m z c store request respond = do
   let union = L.union existing pretty
   let intersect = L.intersect existing pretty
   putMVar store union
-  let overlap = fromIntegral (L.length intersect) / fromIntegral (L.length union)
+  let overlap = fromIntegral (L.length intersect) / fromIntegral (L.length pretty)
   let result = object [("chunks", toJSON pretty),("overlap", toJSON (overlap::Double))]
   respond $ responseBuilder
     status200
