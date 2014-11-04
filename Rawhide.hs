@@ -54,7 +54,7 @@ a32scan m z s = scan (a32init m (B.take z s)) s
 group :: (Eq a) => Int64 -> Int64 -> a -> [a] -> [Int64]
 group min max c cs = groupRun c cs 0
   where groupRun _ []     n = [n]
-        groupRun c (h:hs) n = if h == c && n >= min || n == max
+        groupRun c (h:hs) n = if h == c || n == max
                               then n : groupRun c hs 1
                               else groupRun c hs (n + 1)
 
