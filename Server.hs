@@ -26,6 +26,10 @@ import Graphics.Rendering.Chart.Backend.Cairo
 import Data.Default.Class
 import Control.Lens
 
+import Statistics.Sample hiding (range)
+import Statistics.Sample.Histogram
+import qualified Data.Vector as Vector
+
 import Rawhide
 
 prettyHash = concat . map (\h -> let s = showHex h "" in if length s == 1 then "0" ++ s else s) . SB.unpack
@@ -33,14 +37,36 @@ prettyHash = concat . map (\h -> let s = showHex h "" in if length s == 1 then "
 plot :: Map.Map String Int -> Renderable ()
 plot chunks = toRenderable layout
   where
-    layout = layout_title .~ "Rawhide Chunks"
-           $ layout_plots .~ [points]
-           $ layout_y_axis . laxis_generate .~ scaledAxis def (0.0,4.0)
+    layout = layoutlr_title .~ "Rawhide Chunks"
+           $ layoutlr_plots .~ [Right histogram, Left points, Left meanSize, Left meanOverlap]
+           $ layoutlr_left_axis . laxis_generate .~ scaledAxis def (0.0,4.0)
            $ def
+    meanSize = vlinePlot "mean size" (def & line_dashes .~ [4]) $ LogValue $ getMeanSize chunks
+    meanOverlap = hlinePlot "mean overlap" (def & line_dashes .~ [4]) $ getMeanOverlap chunks
     points = toPlot $
-      def & plot_points_title .~ "Sizes vs. Overlap"
+      def & plot_points_title .~ "Size vs. Overlap"
           & plot_points_values .~ (getPoints chunks)
           & plot_points_style .~ (def & point_radius .~ 3)
+    histogram = plotBars $
+      def & plot_bars_values .~ (getSizeHistogram chunks)
+          & plot_bars_alignment .~ BarsLeft
+
+getSizeSample :: Map.Map String Int -> Vector.Vector Double
+getSizeSample chunks = Vector.fromList $ map (\s -> read $ L.drop 41 s) (Map.keys chunks)
+
+getOverlapSample :: Map.Map String Int -> Vector.Vector Double
+getOverlapSample chunks = Vector.fromList $ map fromIntegral $ Map.elems chunks
+
+getMeanSize :: Map.Map String Int -> Double
+getMeanSize chunks = mean $ getSizeSample chunks
+
+getMeanOverlap :: Map.Map String Int -> Double
+getMeanOverlap chunks = mean $ getOverlapSample chunks
+
+getSizeHistogram :: Map.Map String Int -> [(LogValue, [Double])]
+getSizeHistogram chunks = L.zip (map LogValue $ Vector.toList xs) (map (\y -> [fromIntegral y]) $ Vector.toList ys)
+  where dat = Vector.fromList $ map (\s -> read $ L.drop 41 s) (Map.keys chunks)
+        (xs, ys) = histogram 50 dat
 
 getPoints :: Map.Map String Int -> [(LogValue, Double)]
 getPoints chunks = map (\(s,i) -> (LogValue $ read $ L.drop 41 s, fromIntegral i)) (Map.assocs chunks)

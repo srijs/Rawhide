@@ -8,4 +8,4 @@ Build-Type:     Simple
 
 Executable rawhide-http
   Main-Is:        Server.hs
-  Build-Depends:  base, containers, bytestring, QuickCheck, aeson, warp, wai, blaze-builder, http-types, cryptohash, Chart, Chart-cairo, lens, data-default-class
+  Build-Depends:  base, containers, bytestring, QuickCheck, aeson, warp, wai, blaze-builder, http-types, cryptohash, Chart, Chart-cairo, lens, data-default-class, statistics, vector
